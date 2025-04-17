@@ -19,6 +19,7 @@ export async function createVideoFromImagesAndAudio(
 	imageUrls: string[],
 	audioUrl: string,
 ): Promise<string> {
+  console.log('started generating music video')
 	const tempDir = path.join(
 		process.env.TMPDIR || "/tmp",
 		`birthday-video-${uuidv4()}`,
@@ -133,7 +134,6 @@ export async function createVideoFromImagesAndAudio(
 
 				try {
 					const videoBuffer = fs.readFileSync(outputPath);
-					const dataUrl = `data:video/mp4;base64,${videoBuffer.toString("base64")}`;
 					const { data, error } = await supabase()
 						.storage.from("videos")
 						.upload(`${uuidv4()}.mp4`, videoBuffer);
@@ -150,6 +150,7 @@ export async function createVideoFromImagesAndAudio(
 
 					resolve(signedUrlData.signedUrl);
 				} catch (err) {
+          console.error(err)
 					reject(
 						new Error(
 							`Failed to read output video: ${err instanceof Error ? err.message : String(err)}`,
