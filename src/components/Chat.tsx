@@ -31,6 +31,19 @@ export const Chat = ({
 		initialTransformedImages,
 	);
 
+	const { data: generatedAssets } =
+		api.chats.getChatGeneratedAssetsByChatId.useQuery(
+			{ chatId: id },
+			{ enabled: !!id },
+		);
+
+	const hasGeneratedAssets =
+		typeof generatedAssets !== "undefined" && generatedAssets.length > 0;
+
+	if (hasGeneratedAssets) {
+		return <GeneratedAssets generatedAssets={generatedAssets} />;
+	}
+
 	if (transformedImages.length > 0) {
 		return (
 			<ChatContent
@@ -53,11 +66,6 @@ export function ChatContent({
 	initialMessages: Array<UIMessage>;
 	transformedImages: string[];
 }) {
-	const { data: generatedAssets } =
-		api.chats.getChatGeneratedAssetsByChatId.useQuery(
-			{ chatId: id },
-			{ enabled: !!id },
-		);
 	const { user } = useUser();
 	const { data: availableTokens } = api.tokens.get.useQuery(undefined, {
 		enabled: !!user,
@@ -101,66 +109,12 @@ export function ChatContent({
 		handleSubmit();
 	};
 
-	const hasGeneratedAssets =
-		typeof generatedAssets !== "undefined" && generatedAssets.length > 0;
-
 	return (
 		<AnimatePresence>
 			<div className="flex flex-col min-w-0 h-dvh bg-black text-white font-archivo relative overflow-x-hidden">
 				<MouseEventGlow />
 				<div className="relative z-10 flex-1 overflow-hidden">
-					{!hasGeneratedAssets && (
-						<ChatMessages status={status} messages={messages} />
-					)}
-					{hasGeneratedAssets && (
-						<ScrollArea className="flex-1 h-full">
-							<div className="flex gap-4 z-50 w-full flex-wrap justify-center p-4">
-								{generatedAssets?.map((asset) => (
-									<Card
-										key={asset.id}
-										className="max-w-[500px] w-full bg-gradient-to-br from-purple-600/10 to-pink-600/10 hover:from-purple-700/10 hover:to-pink-700/10 border-purple-700/30"
-									>
-										<CardContent>
-											{asset.type === "birthdaySong" && (
-												<audio
-													src={asset.data.songUrl}
-													className="w-full max-w-[500px]"
-												>
-													<track kind="captions" />
-												</audio>
-											)}
-											{asset.type === "birthdayVideo" &&
-												asset.data.videoUrl && (
-													<div className="flex justify-center flex-col gap-2">
-														<video
-															src={asset.data.videoUrl}
-															controls
-															className="max-w-[500px] w-full rounded-lg"
-														>
-															<track kind="captions" />
-															Your browser does not support the video element.
-														</video>
-														<Button
-															className="text-sm text-gray-400"
-															onClick={() => {
-																const url = new URL(
-																	`/happy-birthday/${asset.id}`,
-																	window.location.origin,
-																);
-																navigator.clipboard.writeText(url.toString());
-																toast.success("Link copied to clipboard");
-															}}
-														>
-															Copy link
-														</Button>
-													</div>
-												)}
-										</CardContent>
-									</Card>
-								))}
-							</div>
-						</ScrollArea>
-					)}
+					<ChatMessages status={status} messages={messages} />
 				</div>
 				<form
 					className="sticky bottom-0 left-0 right-0 flex items-center gap-2 border-t border-purple-700/30 bg-black p-3 md:p-4 z-10"
@@ -175,7 +129,6 @@ export function ChatContent({
 				>
 					<Input
 						placeholder="Type your message..."
-						disabled={hasGeneratedAssets}
 						className="flex-1 bg-black/80 border-purple-700/30 text-white placeholder:text-gray-400 focus-visible:ring-purple-500 h-12 md:h-auto"
 						value={input}
 						onChange={(e) => setInput(e.target.value)}
@@ -200,7 +153,7 @@ export function ChatContent({
 					<Button
 						type="submit"
 						size="icon"
-						disabled={!input.trim() || hasGeneratedAssets}
+						disabled={!input.trim()}
 						className="bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white h-12 w-12 md:h-10 md:w-10"
 					>
 						<SendHorizontalIcon className="h-5 w-5 md:h-4 md:w-4" />
@@ -209,5 +162,71 @@ export function ChatContent({
 				</form>
 			</div>
 		</AnimatePresence>
+	);
+}
+
+interface GeneratedAsset {
+	id: string;
+	type: "birthdaySong" | "birthdayVideo";
+	data: {
+		songUrl: string;
+		lyrics: string;
+		videoUrl?: string;
+		imagesUrl?: string[];
+	};
+}
+
+interface GeneratedAssetsProps {
+	generatedAssets: GeneratedAsset[];
+}
+
+export function GeneratedAssets({ generatedAssets }: GeneratedAssetsProps) {
+	return (
+		<ScrollArea className="flex-1 h-full">
+			<div className="flex gap-4 z-50 w-full flex-wrap justify-center p-4">
+				{generatedAssets.map((asset) => (
+					<Card
+						key={asset.id}
+						className="max-w-[500px] w-full bg-gradient-to-br from-purple-600/10 to-pink-600/10 hover:from-purple-700/10 hover:to-pink-700/10 border-purple-700/30"
+					>
+						<CardContent>
+							{asset.type === "birthdaySong" && (
+								<audio
+									src={asset.data.songUrl}
+									className="w-full max-w-[500px]"
+								>
+									<track kind="captions" />
+								</audio>
+							)}
+							{asset.type === "birthdayVideo" && asset.data.videoUrl && (
+								<div className="flex justify-center flex-col gap-2">
+									<video
+										src={asset.data.videoUrl}
+										controls
+										className="max-w-[500px] w-full rounded-lg"
+									>
+										<track kind="captions" />
+										Your browser does not support the video element.
+									</video>
+									<Button
+										className="text-sm text-gray-400"
+										onClick={() => {
+											const url = new URL(
+												`/happy-birthday/${asset.id}`,
+												window.location.origin,
+											);
+											navigator.clipboard.writeText(url.toString());
+											toast.success("Link copied to clipboard");
+										}}
+									>
+										Copy link
+									</Button>
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				))}
+			</div>
+		</ScrollArea>
 	);
 }
